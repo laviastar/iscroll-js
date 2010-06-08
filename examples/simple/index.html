@@ -21,25 +21,27 @@ function setHeight() {
 
 function loaded() {
 	setHeight();
-	document.addEventListener('touchmove', function(e){ e.preventDefault(); }, false);
 	myScroll = new iScroll('scroller');
 }
 
+document.addEventListener('touchmove', function(e){ e.preventDefault(); }, true);
 document.addEventListener('DOMContentLoaded', loaded, false);
 </script>
 
 <style type="text/css" media="all">
+body,ul,li {
+	padding:0;
+	margin:0;
+}
+
 body {
 	font-size:12px;
 	-webkit-user-select:none;
     -webkit-text-size-adjust:none;
 /*	-webkit-box-sizing:border-box;*/
 	font-family:helvetica;
-}
-
-body,ul,li {
-	padding:0;
-	margin:0;
+/*	padding-bottom:45px;	/*	This prevents the scroller to lock if the user swipes down outside of the screen.
+							 	NOT needed if in home screen mode. */
 }
 
 #header {

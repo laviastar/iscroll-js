@@ -7,12 +7,11 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.3 beta 2 - Last updated: 2010.06.06
+ * Version 3.3 beta 2 - Last updated: 2010.06.08
  * 
  */
 
 (function(){
-
 function iScroll (el, options) {
 	this.element = typeof el == 'object' ? el : document.getElementById(el);
 	this.wrapper = this.element.parentNode;
@@ -54,7 +53,6 @@ iScroll.prototype = {
 	x: 0,
 	y: 0,
 	residual: null,
-	scrollBarTimeout: null,
 	resetTimeout: null,
 
 	handleEvent: function (e) {
@@ -164,9 +162,9 @@ iScroll.prototype = {
 	},
 		
 	touchStart: function(e) {
-	    if (e.targetTouches.length != 1) {
+/*	    if (e.touches.length != 1) {
 	        return false;
-        }
+        }*/
 
 		e.preventDefault();
 		e.stopPropagation();
@@ -180,11 +178,6 @@ iScroll.prototype = {
 				this.element.removeEventListener('webkitTransitionEnd', this, false);
 				this.setPosition(matrix.e, matrix.f);
 			}
-		}
-
-		if (this.scrollBarTimeout) {
-			clearTimeout(this.scrollBarTimeout);
-			this.scrollBarTimeout = null;
 		}
 
 		this.touchStartX = e.touches[0].pageX;
@@ -201,14 +194,18 @@ iScroll.prototype = {
 	},
 	
 	touchMove: function(e) {
-		if (e.targetTouches.length != 1) {
+/*		if (e.targetTouches.length != 1) {
 			return false;
-		}
+		}*/
 
 		var leftDelta = this.scrollX === true ? e.touches[0].pageX - this.touchStartX : 0,
 			topDelta = this.scrollY === true ? e.touches[0].pageY - this.touchStartY : 0,
 			newX = this.x + leftDelta,
 			newY = this.y + topDelta;
+
+		this.touchStartX = e.touches[0].pageX;
+		this.touchStartY = e.touches[0].pageY;
+		this.moved = true;
 
 		// Slow down if outside of the boundaries
 		if (newX > 0 || newX < this.maxScrollX) { 
@@ -220,16 +217,13 @@ iScroll.prototype = {
 
 		this.setPosition(newX, newY);
 
-		this.touchStartX = e.touches[0].pageX;
-		this.touchStartY = e.touches[0].pageY;
-		this.moved = true;
-
 		// Prevent slingshot effect
+		/*
 		if( e.timeStamp-this.scrollStartTime > 250 ) {
 			this.scrollStartX = this.x;
 			this.scrollStartY = this.y;
 			this.scrollStartTime = e.timeStamp;
-		}
+		}*/
 	},
 	
 	touchEnd: function(e) {
@@ -305,11 +299,6 @@ iScroll.prototype = {
 			that = this,
 			time = time || '500ms';
 
-		if (this.scrollBarTimeout) {
-			clearTimeout(this.scrollBarTimeout);
-			this.scrollBarTimeout = null;
-		}
-
 		if (this.x >= 0) {
 			resetX = 0;
 		} else if (this.x < this.maxScrollX) {
@@ -328,14 +317,12 @@ iScroll.prototype = {
 //			this.setPosition(resetX, resetY);
 		} else if (this.scrollBarX || this.scrollBarY) {
 			// Hide the scrollbars with a 200ms delay
-			this.scrollBarTimeout = setTimeout(function () {
-				if (that.scrollBarX) {
-					that.scrollBarX.hide();
-				}
-				if (that.scrollBarY) {
-					that.scrollBarY.hide();
-				}
-			}, 200);
+			if (this.scrollBarX) {
+				this.scrollBarX.hide();
+			}
+			if (this.scrollBarY) {
+				this.scrollBarY.hide();
+			}
 		}
 	},
 
@@ -346,8 +333,8 @@ iScroll.prototype = {
 	},
 
 	momentum: function (dist, time, maxDistUpper, maxDistLower) {
-		var friction = 1.8,
-			deceleration = 2.1,
+		var friction = 2.5,
+			deceleration = 1.2,
 			speed = Math.abs(dist) / time * 1000,
 			newDist = speed * speed / friction / 1000,
 			newTime = 0;
@@ -376,11 +363,11 @@ var scrollbar = function (dir, wrapper, classname) {
 
 	var style = 'position:absolute;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;opacity:0;' +
 		(has3d
-			? '-webkit-transition-duration:0,300ms;-webkit-transition-property:-webkit-transform,opacity;-webkit-transform:translate3d(0,0,0);'
+			? '-webkit-transition-duration:0,300ms;-webkit-transition-delay:0,0;-webkit-transition-property:-webkit-transform,opacity;-webkit-transform:translate3d(0,0,0);'
 			: '-webkit-transition-duration:0;-webkit-transition-property:webkit-transform;-webkit-transform:translate(0,0);') +
 		(this.dir == 'horizontal'
-			? 'bottom:1px;left:1px'
-			: 'top:1px;right:1px');
+			? 'bottom:2px;left:1px'
+			: 'top:1px;right:2px');
 
 	if (classname) {
 		this.bar.className = classname + ' ' + dir;
@@ -426,10 +413,16 @@ scrollbar.prototype = {
 	},
 
 	show: function () {
+		if (has3d) {
+			this.bar.style.webkitTransitionDelay = '0,0';
+		}
 		this.bar.style.opacity = '1';
 	},
 
 	hide: function () {
+		if (has3d) {
+			this.bar.style.webkitTransitionDelay = '0,200ms';
+		}
 		this.bar.style.opacity = '0';
 	},
 	
@@ -439,8 +432,12 @@ scrollbar.prototype = {
 	}
 };
 
-// Is translated3d compatible
+// Is translate3d compatible?
 var has3d = ('m11' in new WebKitCSSMatrix());
+/*
+var isIphone = navigator.appVersion.match(/iphone/gi) ? true : false;
+var isAndroid = navigator.appVersion.match(/android/gi) ? true : false;
+*/
 
 // Expose iScroll to the world
 window.iScroll = iScroll;
