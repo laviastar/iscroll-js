@@ -27,7 +27,7 @@ function iScroll (el, options) {
 		topOnDOMChanges: false,
 		hScrollBar: has3d,
 		vScrollBar: has3d,
-		scrollBarClass: null,
+		scrollbarClass: null,
 		overflow: 'auto',
 	};
 	
@@ -41,7 +41,8 @@ function iScroll (el, options) {
 	
 	this.refresh();
 	
-	window.addEventListener('orientationchange', this, false);
+//	window.addEventListener('orientationchange', this, false);
+	window.addEventListener('resize', this, false);		// 'resize' seems more widely supported (works on both Android and iPhone)
 	this.element.addEventListener('touchstart', this, false);
 
 	if (this.options.checkDOMChanges) {
@@ -69,6 +70,7 @@ iScroll.prototype = {
 			case 'webkitTransitionEnd':
 				this.transitionEnd(e);
 				break;
+			case 'resize':
 			case 'orientationchange':
 				this.refresh();
 				break;
@@ -117,7 +119,7 @@ iScroll.prototype = {
 
 		// Update horizontal scrollbar
 		if (this.options.hScrollBar && this.scrollX) {
-			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.scrollBarClass);
+			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.scrollbarClass);
 			this.scrollBarX.init(this.scrollWidth, this.element.offsetWidth);
 		} else if (this.scrollBarX) {
 			this.scrollBarX = this.scrollBarX.remove();
@@ -125,7 +127,7 @@ iScroll.prototype = {
 
 		// Update vertical scrollbar
 		if (this.options.vScrollBar && this.scrollY) {
-			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.scrollBarClass);
+			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.scrollbarClass);
 			this.scrollBarY.init(this.scrollHeight, this.element.offsetHeight);
 		} else if (this.scrollBarY) {
 			this.scrollBarY = this.scrollBarY.remove();
@@ -372,7 +374,7 @@ var scrollbar = function (dir, wrapper, classname) {
 	if (classname) {
 		this.bar.className = classname + ' ' + dir;
 	} else {
-		style+= ';z-index:10;background:rgba(0,0,0,0.5);-webkit-border-radius:2px 3px;' + (dir == 'horizontal' ? 'min-width:6px;min-height:5px' : 'min-width:5px;min-height:6px');
+		style+= ';z-index:10;background:rgba(0,0,0,0.5);' + (dir == 'horizontal' ? '-webkit-border-radius:3px 2px;min-width:6px;min-height:5px' : '-webkit-border-radius:2px 3px;min-width:5px;min-height:6px');
 	}
 	
 	this.bar.setAttribute('style', style);

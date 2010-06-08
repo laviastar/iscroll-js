@@ -24,15 +24,42 @@ function setHeight() {
 
 function loaded() {
 	setHeight();
-	myScroll = new iScroll('scroller');
+	myScroll = new iScroll('scroller', { scrollbarClass: 'scrollbar' });
 }
 
-window.addEventListener('onorientationchange' in window ? 'orientationchange' : 'resize', setHeight, false);
+window.addEventListener('resize', setHeight, false);
 document.addEventListener('touchmove', function(e){ e.preventDefault(); }, true);
 document.addEventListener('DOMContentLoaded', loaded, false);
 </script>
 
 <style type="text/css" media="all">
+/***********************************
+ * Define your custom scrollbar
+ */
+
+.scrollbar {
+	position: absolute;
+	z-index: 10;
+	width: 1px;
+	height: 1px;
+	border-width: 3px;
+	-webkit-border-image: url(../../images/scrollbar2.png) 3;
+}
+ 
+.scrollbar.horizontal {
+	bottom: 1px;
+	left: 1px;
+}
+ 
+.scrollbar.vertical {
+	top: 1px;
+	right: 1px;
+}
+
+/***********************************
+ * Cut here
+ */
+
 body,ul,li {
 	padding:0;
 	margin:0;
