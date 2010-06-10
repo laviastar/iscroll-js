@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Scrolling DIV demo on iPhone / iPod Touch / Android / iPad</title>
 
-<script type="text/javascript" src="../../src/iscroll.js?v3.3b2"></script>
+<script type="text/javascript" src="../../src/iscroll.js?v3.3b3"></script>
 
 <script type="text/javascript">
 var myScroll;
@@ -24,6 +24,10 @@ function setHeight() {
 
 function loaded() {
 	setHeight();
+	
+	var click = document.getElementById('thelist');
+	click.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); alert('You clicked row ' + e.target.innerText.replace(/[^0-9]/gi,'')); }, true);
+	
 	myScroll = new iScroll('scroller');
 }
 

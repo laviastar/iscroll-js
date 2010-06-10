@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.3 beta 2 - Last updated: 2010.06.08
+ * Version 3.3 beta 3 - Last updated: 2010.06.10
  * 
  */
 
@@ -25,9 +25,10 @@ function iScroll (el, options) {
 		momentum: has3d,
 		checkDOMChanges: true,
 		topOnDOMChanges: false,
-		hScrollBar: has3d,
-		vScrollBar: has3d,
+		hScrollbar: has3d,
+		vScrollbar: has3d,
 		scrollbarClass: null,
+		fadeScrollbar: isIphone,
 		overflow: 'auto',
 	};
 	
@@ -53,8 +54,7 @@ function iScroll (el, options) {
 iScroll.prototype = {
 	x: 0,
 	y: 0,
-	residual: null,
-	resetTimeout: null,
+	dist: 0,
 
 	handleEvent: function (e) {
 		switch (e.type) {
@@ -118,16 +118,16 @@ iScroll.prototype = {
 		this.scrollY = this.element.offsetHeight > this.scrollHeight ? true : false;
 
 		// Update horizontal scrollbar
-		if (this.options.hScrollBar && this.scrollX) {
-			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.scrollbarClass);
+		if (this.options.hScrollbar && this.scrollX) {
+			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar);
 			this.scrollBarX.init(this.scrollWidth, this.element.offsetWidth);
 		} else if (this.scrollBarX) {
 			this.scrollBarX = this.scrollBarX.remove();
 		}
 
 		// Update vertical scrollbar
-		if (this.options.vScrollBar && this.scrollY) {
-			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.scrollbarClass);
+		if (this.options.vScrollbar && this.scrollY) {
+			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar);
 			this.scrollBarY.init(this.scrollHeight, this.element.offsetHeight);
 		} else if (this.scrollBarY) {
 			this.scrollBarY = this.scrollBarY.remove();
@@ -156,10 +156,10 @@ iScroll.prototype = {
 		this.element.style.webkitTransitionDuration = time;
 		
 		if (this.scrollBarX) {
-			this.scrollBarX.bar.style.webkitTransitionDuration = time + (has3d ? ',300ms' : '');
+			this.scrollBarX.bar.style.webkitTransitionDuration = time + (has3d && this.options.fadeScrollbar ? ',300ms' : ',0');
 		}
 		if (this.scrollBarY) {
-			this.scrollBarY.bar.style.webkitTransitionDuration = time + (has3d ? ',300ms' : '');
+			this.scrollBarY.bar.style.webkitTransitionDuration = time + (has3d && this.options.fadeScrollbar ? ',300ms' : ',0');
 		}
 	},
 		
@@ -171,7 +171,10 @@ iScroll.prototype = {
 		e.preventDefault();
 		e.stopPropagation();
 
-		this.setTransitionTime();
+		this.moved = false;
+		this.dist = 0;
+
+		this.setTransitionTime('0');
 
 		// Check if the scroller is really where it should be
 		if (this.options.momentum) {
@@ -179,6 +182,7 @@ iScroll.prototype = {
 			if (matrix.e != this.x || matrix.f != this.y) {
 				this.element.removeEventListener('webkitTransitionEnd', this, false);
 				this.setPosition(matrix.e, matrix.f);
+				this.moved = true;
 			}
 		}
 
@@ -189,7 +193,6 @@ iScroll.prototype = {
 		this.scrollStartY = this.y;
 
 		this.scrollStartTime = e.timeStamp;
-		this.moved = false;
 
 		this.element.addEventListener('touchmove', this, false);
 		this.element.addEventListener('touchend', this, false);
@@ -205,19 +208,25 @@ iScroll.prototype = {
 			newX = this.x + leftDelta,
 			newY = this.y + topDelta;
 
+		this.dist+= Math.abs(this.touchStartX - e.touches[0].pageX) + Math.abs(this.touchStartY - e.touches[0].pageY);
+
 		this.touchStartX = e.touches[0].pageX;
 		this.touchStartY = e.touches[0].pageY;
-		this.moved = true;
+
+//		this.moved = true;
 
 		// Slow down if outside of the boundaries
 		if (newX > 0 || newX < this.maxScrollX) { 
-			newX = this.options.bounce ? Math.round(this.x + leftDelta / 3) : this.x;
+			newX = this.options.bounce ? Math.round(this.x + leftDelta / 3) : newX >= 0 ? 0 : this.maxScrollX;
 		}
 		if (newY > 0 || newY < this.maxScrollY) { 
-			newY = this.options.bounce ? Math.round(this.y + topDelta / 3) : this.y;
+			newY = this.options.bounce ? Math.round(this.y + topDelta / 3) : newY >= 0 ? 0 : this.maxScrollY;
 		}
 
-		this.setPosition(newX, newY);
+		if (this.dist > 5) {			// 5 pixels threshold are needed for Android, but also on iPhone seems more natural
+			this.setPosition(newX, newY);
+			this.moved = true;
+		}
 
 		// Prevent slingshot effect
 		/*
@@ -241,7 +250,7 @@ iScroll.prototype = {
 		
 		if (!this.moved) {
 			this.resetPosition();
-			
+
 			// Find the last touched element
 			var target = e.changedTouches[0].target;
 			while (target.nodeType != 1) {
@@ -259,7 +268,7 @@ iScroll.prototype = {
 			return false;
 		}
 
-		if (!this.options.momentum || time > 250) {
+		if (!this.options.momentum || time > 250) {			// Prevent slingshot effetct
 			this.resetPosition();
 			return false;
 		}
@@ -318,7 +327,7 @@ iScroll.prototype = {
 //			this.setTransitionTime(time);
 //			this.setPosition(resetX, resetY);
 		} else if (this.scrollBarX || this.scrollBarY) {
-			// Hide the scrollbars with a 200ms delay
+			// Hide the scrollbars
 			if (this.scrollBarX) {
 				this.scrollBarX.hide();
 			}
@@ -358,14 +367,15 @@ iScroll.prototype = {
 	}
 };
 
-var scrollbar = function (dir, wrapper, classname) {
+var scrollbar = function (dir, wrapper, classname, fade) {
 	this.dir = dir;
+	this.fade = fade;
 
 	this.bar = document.createElement('div');
 
 	var style = 'position:absolute;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;opacity:0;' +
 		(has3d
-			? '-webkit-transition-duration:0,300ms;-webkit-transition-delay:0,0;-webkit-transition-property:-webkit-transform,opacity;-webkit-transform:translate3d(0,0,0);'
+			? '-webkit-transition-duration:0' + (fade ? ',300ms' : '') + ';-webkit-transition-delay:0,0;-webkit-transition-property:-webkit-transform,opacity;-webkit-transform:translate3d(0,0,0);'
 			: '-webkit-transition-duration:0;-webkit-transition-property:webkit-transform;-webkit-transform:translate(0,0);') +
 		(this.dir == 'horizontal'
 			? 'bottom:2px;left:1px'
@@ -436,10 +446,10 @@ scrollbar.prototype = {
 
 // Is translate3d compatible?
 var has3d = ('m11' in new WebKitCSSMatrix());
-/*
+
 var isIphone = navigator.appVersion.match(/iphone/gi) ? true : false;
-var isAndroid = navigator.appVersion.match(/android/gi) ? true : false;
-*/
+// var isAndroid = navigator.appVersion.match(/android/gi) ? true : false;
+
 
 // Expose iScroll to the world
 window.iScroll = iScroll;
