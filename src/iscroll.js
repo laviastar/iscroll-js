@@ -28,7 +28,7 @@ function iScroll (el, options) {
 		hScrollbar: has3d,
 		vScrollbar: has3d,
 		scrollbarClass: null,
-		fadeScrollbar: isIphone,
+		fadeScrollbar: isIphone || isIpad,
 		overflow: 'auto',
 	};
 	
@@ -448,6 +448,7 @@ scrollbar.prototype = {
 var has3d = ('m11' in new WebKitCSSMatrix());
 
 var isIphone = navigator.appVersion.match(/iphone/gi) ? true : false;
+var isIpad = navigator.appVersion.match(/ipad/gi) ? true : false;
 // var isAndroid = navigator.appVersion.match(/android/gi) ? true : false;
 
 
