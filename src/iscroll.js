@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.3 beta 3 - Last updated: 2010.06.10
+ * Version 3.3 - Last updated: 2010.06.11
  * 
  */
 
@@ -71,7 +71,7 @@ iScroll.prototype = {
 				this.transitionEnd(e);
 				break;
 			case 'resize':
-			case 'orientationchange':
+//			case 'orientationchange':
 				this.refresh();
 				break;
 			case 'DOMSubtreeModified':
@@ -450,7 +450,6 @@ var has3d = ('m11' in new WebKitCSSMatrix());
 var isIphone = navigator.appVersion.match(/iphone/gi) ? true : false;
 var isIpad = navigator.appVersion.match(/ipad/gi) ? true : false;
 // var isAndroid = navigator.appVersion.match(/android/gi) ? true : false;
-
 
 // Expose iScroll to the world
 window.iScroll = iScroll;
