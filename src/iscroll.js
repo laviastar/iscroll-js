@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.3 - Last updated: 2010.06.11
+ * Version 3.4 - Last updated: 2010.06.11
  * 
  */
 
@@ -28,8 +28,10 @@ function iScroll (el, options) {
 		hScrollbar: has3d,
 		vScrollbar: has3d,
 		scrollbarClass: null,
-		fadeScrollbar: isIphone || isIpad,
-		overflow: 'auto',
+		fadeScrollbar: isIphone || isIpad || !isTouch,
+		shrinkScrollbar: isIphone || isIpad,
+		desktopCompatibility: false,
+		overflow: 'auto'
 	};
 	
 	if (typeof options == 'object') {
@@ -37,17 +39,28 @@ function iScroll (el, options) {
 			this.options[i] = options[i];
 		}
 	}
-
+	
+	if (this.options.desktopCompatibility) {
+		this.options.overflow = 'hidden';
+	}
+	
 	this.wrapper.style.overflow = this.options.overflow;
 	
 	this.refresh();
-	
-//	window.addEventListener('orientationchange', this, false);
-	window.addEventListener('resize', this, false);		// 'resize' seems more widely supported (works on both Android and iPhone)
-	this.element.addEventListener('touchstart', this, false);
 
+//	window.addEventListener('orientationchange', this, false);
+	window.addEventListener('resize', this, false);		// 'resize' seems more widely supported (works on Android, iPhone and desktop browsers)
+
+	if (isTouch || this.options.desktopCompatibility) {
+		this.element.addEventListener(START_EVENT, this, false);
+	}
+	
 	if (this.options.checkDOMChanges) {
 		this.element.addEventListener('DOMSubtreeModified', this, false);
+	}
+	
+	if (!isTouch) {
+		this.element.addEventListener('click', this, true);
 	}
 }
 
@@ -58,20 +71,24 @@ iScroll.prototype = {
 
 	handleEvent: function (e) {
 		switch (e.type) {
-			case 'touchstart':
+			case 'click':
+				if (!e._fake) {
+					e.stopPropagation();
+				}
+				break;
+			case START_EVENT:
 				this.touchStart(e);
 				break;
-			case 'touchmove':
+			case MOVE_EVENT:
 				this.touchMove(e);
 				break;
-			case 'touchend':
+			case END_EVENT:
 				this.touchEnd(e);
 				break;
 			case 'webkitTransitionEnd':
 				this.transitionEnd(e);
 				break;
 			case 'resize':
-//			case 'orientationchange':
 				this.refresh();
 				break;
 			case 'DOMSubtreeModified':
@@ -119,7 +136,7 @@ iScroll.prototype = {
 
 		// Update horizontal scrollbar
 		if (this.options.hScrollbar && this.scrollX) {
-			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar);
+			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar, this.options.shrinkScrollbar);
 			this.scrollBarX.init(this.scrollWidth, this.element.offsetWidth);
 		} else if (this.scrollBarX) {
 			this.scrollBarX = this.scrollBarX.remove();
@@ -127,7 +144,7 @@ iScroll.prototype = {
 
 		// Update vertical scrollbar
 		if (this.options.vScrollbar && this.scrollY) {
-			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar);
+			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar, this.options.shrinkScrollbar);
 			this.scrollBarY.init(this.scrollHeight, this.element.offsetHeight);
 		} else if (this.scrollBarY) {
 			this.scrollBarY = this.scrollBarY.remove();
@@ -156,10 +173,12 @@ iScroll.prototype = {
 		this.element.style.webkitTransitionDuration = time;
 		
 		if (this.scrollBarX) {
-			this.scrollBarX.bar.style.webkitTransitionDuration = time + (has3d && this.options.fadeScrollbar ? ',300ms' : ',0');
+			this.scrollBarX.bar.style.webkitTransitionDuration = time;
+			this.scrollBarX.wrapper.style.webkitTransitionDuration = has3d && this.options.fadeScrollbar ? '300ms' : '0';
 		}
 		if (this.scrollBarY) {
-			this.scrollBarY.bar.style.webkitTransitionDuration = time + (has3d && this.options.fadeScrollbar ? ',300ms' : ',0');
+			this.scrollBarY.bar.style.webkitTransitionDuration = time;
+			this.scrollBarY.wrapper.style.webkitTransitionDuration = has3d && this.options.fadeScrollbar ? '300ms' : '0';
 		}
 	},
 		
@@ -167,7 +186,7 @@ iScroll.prototype = {
 /*	    if (e.touches.length != 1) {
 	        return false;
         }*/
-
+		
 		e.preventDefault();
 		e.stopPropagation();
 
@@ -186,16 +205,16 @@ iScroll.prototype = {
 			}
 		}
 
-		this.touchStartX = e.touches[0].pageX;
+		this.touchStartX = isTouch ? e.touches[0].pageX : e.pageX;
 		this.scrollStartX = this.x;
 
-		this.touchStartY = e.touches[0].pageY;
+		this.touchStartY = isTouch ? e.touches[0].pageY : e.pageY;
 		this.scrollStartY = this.y;
 
 		this.scrollStartTime = e.timeStamp;
 
-		this.element.addEventListener('touchmove', this, false);
-		this.element.addEventListener('touchend', this, false);
+		this.element.addEventListener(MOVE_EVENT, this, false);
+		this.element.addEventListener(END_EVENT, this, false);
 	},
 	
 	touchMove: function(e) {
@@ -203,15 +222,17 @@ iScroll.prototype = {
 			return false;
 		}*/
 
-		var leftDelta = this.scrollX === true ? e.touches[0].pageX - this.touchStartX : 0,
-			topDelta = this.scrollY === true ? e.touches[0].pageY - this.touchStartY : 0,
+		var pageX = isTouch ? e.touches[0].pageX : e.pageX,
+			pageY = isTouch ? e.touches[0].pageY : e.pageY,
+			leftDelta = this.scrollX === true ? pageX - this.touchStartX : 0,
+			topDelta = this.scrollY === true ? pageY - this.touchStartY : 0,
 			newX = this.x + leftDelta,
 			newY = this.y + topDelta;
 
-		this.dist+= Math.abs(this.touchStartX - e.touches[0].pageX) + Math.abs(this.touchStartY - e.touches[0].pageY);
+		this.dist+= Math.abs(this.touchStartX - pageX) + Math.abs(this.touchStartY - pageY);
 
-		this.touchStartX = e.touches[0].pageX;
-		this.touchStartY = e.touches[0].pageY;
+		this.touchStartX = pageX;
+		this.touchStartY = pageY;
 
 //		this.moved = true;
 
@@ -238,8 +259,8 @@ iScroll.prototype = {
 	},
 	
 	touchEnd: function(e) {
-		this.element.removeEventListener('touchmove', this, false);
-		this.element.removeEventListener('touchend', this, false);
+		this.element.removeEventListener(MOVE_EVENT, this, false);
+		this.element.removeEventListener(END_EVENT, this, false);
 
 /*
 		if (e.targetTouches.length > 0) {
@@ -252,7 +273,7 @@ iScroll.prototype = {
 			this.resetPosition();
 
 			// Find the last touched element
-			var target = e.changedTouches[0].target;
+			var target = isTouch ? e.changedTouches[0].target : e.target;
 			while (target.nodeType != 1) {
 				target = target.parentNode;
 			}
@@ -263,6 +284,7 @@ iScroll.prototype = {
 				target.screenX, target.screenY, target.clientX, target.clientY,
 				e.ctrlKey, e.altKey, e.shiftKey, e.metaKey,
 				0, null);
+			ev._fake = true;
 			target.dispatchEvent(ev);
 			
 			return false;
@@ -276,15 +298,15 @@ iScroll.prototype = {
 		var momentumX = this.scrollX === true
 			? this.momentum(this.x - this.scrollStartX,
 							time,
-							this.options.bounce ? -this.x + this.scrollWidth/3 : -this.x,
-							this.options.bounce ? this.x + this.element.offsetWidth - this.scrollWidth + this.scrollWidth/3 : this.x + this.element.offsetWidth - this.scrollWidth)
+							this.options.bounce ? -this.x + this.scrollWidth/5 : -this.x,
+							this.options.bounce ? this.x + this.element.offsetWidth - this.scrollWidth + this.scrollWidth/5 : this.x + this.element.offsetWidth - this.scrollWidth)
 			: { dist: 0, time: 0 };
 
 		var momentumY = this.scrollY === true
 			? this.momentum(this.y - this.scrollStartY,
 							time,
-							this.options.bounce ? -this.y + this.scrollHeight/3 : -this.y,
-							this.options.bounce ? this.y + this.element.offsetHeight - this.scrollHeight + this.scrollHeight/3 : this.y + this.element.offsetHeight - this.scrollHeight)
+							this.options.bounce ? -this.y + this.scrollHeight/10 : -this.y,
+							this.options.bounce ? this.y + this.element.offsetHeight - this.scrollHeight + this.scrollHeight/10 : this.y + this.element.offsetHeight - this.scrollHeight)
 			: { dist: 0, time: 0 };
 
 		if (!momentumX.dist && !momentumY.dist) {
@@ -354,8 +376,7 @@ iScroll.prototype = {
 		if (dist > 0 && newDist > maxDistUpper) {
 			speed = speed * maxDistUpper / newDist / friction;
 			newDist = maxDistUpper;
-		}
-		if (dist < 0 && newDist > maxDistLower) {
+		} else if (dist < 0 && newDist > maxDistLower) {
 			speed = speed * maxDistLower / newDist / friction;
 			newDist = maxDistLower;
 		}
@@ -367,52 +388,67 @@ iScroll.prototype = {
 	}
 };
 
-var scrollbar = function (dir, wrapper, classname, fade) {
+var scrollbar = function (dir, wrapper, classname, fade, shrink) {
 	this.dir = dir;
 	this.fade = fade;
+	this.shrink = shrink;
 
+	// Create main scrollbar
 	this.bar = document.createElement('div');
 
-	var style = 'position:absolute;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;opacity:0;' +
-		(has3d
-			? '-webkit-transition-duration:0' + (fade ? ',300ms' : '') + ';-webkit-transition-delay:0,0;-webkit-transition-property:-webkit-transform,opacity;-webkit-transform:translate3d(0,0,0);'
-			: '-webkit-transition-duration:0;-webkit-transition-property:webkit-transform;-webkit-transform:translate(0,0);') +
-		(this.dir == 'horizontal'
-			? 'bottom:2px;left:1px'
-			: 'top:1px;right:2px');
+	var style = 'position:absolute;top:0;left:0;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;-webkit-transition-duration:0;-webkit-transition-delay:0;-webkit-transition-property:-webkit-transform;' +
+		(has3d ? '-webkit-transform:translate3d(0,0,0);' : '-webkit-transform:translate(0,0);');
 
 	if (classname) {
 		this.bar.className = classname + ' ' + dir;
-	} else {
-		style+= ';z-index:10;background:rgba(0,0,0,0.5);' + (dir == 'horizontal' ? '-webkit-border-radius:3px 2px;min-width:6px;min-height:5px' : '-webkit-border-radius:2px 3px;min-width:5px;min-height:6px');
+	} else {	// Default style
+		style+= ';z-index:10;background:rgba(0,0,0,0.5);' +
+			(dir == 'horizontal' ? '-webkit-border-radius:3px 2px;min-width:6px;min-height:5px' : '-webkit-border-radius:2px 3px;min-width:5px;min-height:6px');
 	}
 	
 	this.bar.setAttribute('style', style);
 
-	wrapper.appendChild(this.bar);
+	// Create scrollbar wrapper
+	this.wrapper = document.createElement('div');
+	style = 'position:absolute;pointer-events:none;overflow:hidden;opacity:0;-webkit-transition-duration:' + (fade ? '300ms' : '0') + ';-webkit-transition-delay:0;-webkit-transition-property:opacity;' +
+		(this.dir == 'horizontal'
+			? 'bottom:2px;left:1px;right:7px;height:5px'
+			: 'top:1px;right:2px;bottom:7px;width:5px');
+	this.wrapper.setAttribute('style', style);
+
+	// Add scrollbar to the DOM
+	this.wrapper.appendChild(this.bar);
+	wrapper.appendChild(this.wrapper);
 }
 
 scrollbar.prototype = {
 	init: function (scroll, size) {
-		var offset = this.dir == 'horizontal' ? this.bar.offsetWidth - this.bar.clientWidth : this.bar.offsetHeight - this.bar.clientHeight;
+/*		var offset = this.dir == 'horizontal' ? this.bar.offsetWidth - this.bar.clientWidth : this.bar.offsetHeight - this.bar.clientHeight;
 		this.maxSize = scroll - 8;		// 8 = distance from top + distance from bottom
 		this.size = Math.round(this.maxSize * this.maxSize / size) + offset;
 		this.maxScroll = this.maxSize - this.size;
 		this.toWrapperProp = this.maxScroll / (scroll - size);
-		this.bar.style[this.dir == 'horizontal' ? 'width' : 'height'] = (this.size - offset) + 'px';
+		this.bar.style[this.dir == 'horizontal' ? 'width' : 'height'] = (this.size - offset) + 'px';*/
+		this.maxSize = this.dir == 'horizontal' ? this.wrapper.clientWidth : this.wrapper.clientHeight;
+		this.size = Math.round(this.maxSize * this.maxSize / size);
+		this.maxScroll = this.maxSize - this.size;
+		this.toWrapperProp = this.maxScroll / (scroll - size);
+		this.bar.style[this.dir == 'horizontal' ? 'width' : 'height'] = this.size + 'px';
 	},
 	
 	setPosition: function (pos, hidden) {
-		if (!hidden && this.bar.style.opacity != '1') {
+		if (!hidden && this.wrapper.style.opacity != '1') {
 			this.show();
 		}
 
 		pos = this.toWrapperProp * pos;
 		
-		if (pos < 0) {
-			pos = 0;
-		} else if (pos > this.maxScroll) {
-			pos = this.maxScroll;
+		if (!this.shrink) {
+			if (pos < 0) {
+				pos = 0;
+			} else if (pos > this.maxScroll) {
+				pos = this.maxScroll;
+			}
 		}
 
 		if (has3d) {
@@ -426,16 +462,16 @@ scrollbar.prototype = {
 
 	show: function () {
 		if (has3d) {
-			this.bar.style.webkitTransitionDelay = '0,0';
+			this.wrapper.style.webkitTransitionDelay = '0';
 		}
-		this.bar.style.opacity = '1';
+		this.wrapper.style.opacity = '1';
 	},
 
 	hide: function () {
 		if (has3d) {
-			this.bar.style.webkitTransitionDelay = '0,200ms';
+			this.wrapper.style.webkitTransitionDelay = '200ms';
 		}
-		this.bar.style.opacity = '0';
+		this.wrapper.style.opacity = '0';
 	},
 	
 	remove: function () {
@@ -445,11 +481,15 @@ scrollbar.prototype = {
 };
 
 // Is translate3d compatible?
-var has3d = ('m11' in new WebKitCSSMatrix());
-
-var isIphone = navigator.appVersion.match(/iphone/gi) ? true : false;
-var isIpad = navigator.appVersion.match(/ipad/gi) ? true : false;
-// var isAndroid = navigator.appVersion.match(/android/gi) ? true : false;
+var has3d = ('m11' in new WebKitCSSMatrix()),
+// Device sniffing
+	isIphone = navigator.appVersion.match(/iphone/gi) ? true : false,
+	isIpad = navigator.appVersion.match(/ipad/gi) ? true : false,
+	isAndroid = navigator.appVersion.match(/android/gi) ? true : false,
+	isTouch = isIphone || isIpad || isAndroid,
+	START_EVENT = isTouch ? 'touchstart' : 'mousedown',
+	MOVE_EVENT = isTouch ? 'touchmove' : 'mousemove',
+	END_EVENT = isTouch ? 'touchend' : 'mouseup';
 
 // Expose iScroll to the world
 window.iScroll = iScroll;

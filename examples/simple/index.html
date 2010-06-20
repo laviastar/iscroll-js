@@ -1,12 +1,13 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Scrolling DIV demo on iPhone / iPod Touch / Android / iPad</title>
 
-<script type="text/javascript" src="../../src/iscroll.js?v3.3"></script>
+<script type="text/javascript" src="../../src/iscroll.js?v3.4"></script>
 
 <script type="text/javascript">
 var myScroll;
@@ -16,23 +17,23 @@ function setHeight() {
 	var footerH = document.getElementById('footer').offsetHeight;
 	var wrapperH = window.innerHeight - headerH - footerH;
 	document.getElementById('wrapper').style.height = wrapperH + 'px';
-
-	if (myScroll instanceof iScroll) {
-		myScroll.refresh();
-	}
 }
 
 function loaded() {
 	setHeight();
 	
 	var click = document.getElementById('thelist');
-	click.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); alert('You clicked row ' + e.target.innerText.replace(/[^0-9]/gi,'')); }, true);
+	click.addEventListener('click', function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		alert('You clicked row ' + e.target.innerText.replace(/[^0-9]/gi,''));
+	}, true);
 	
-	myScroll = new iScroll('scroller');
+	myScroll = new iScroll('scroller', { desktopCompatibility:true });
 }
 
-window.addEventListener('onorientationchange' in window ? 'orientationchange' : 'resize', setHeight, false);
-document.addEventListener('touchmove', function(e){ e.preventDefault(); }, true);
+window.addEventListener('resize', setHeight, false);
+document.addEventListener('touchmove', function(e){ e.preventDefault(); }, false);
 document.addEventListener('DOMContentLoaded', loaded, false);
 </script>
 
@@ -48,7 +49,7 @@ body {
     -webkit-text-size-adjust:none;
 /*	-webkit-box-sizing:border-box;*/
 	font-family:helvetica;
-/*	padding-bottom:45px;	/*	This prevents the scroller to lock if the user swipes down outside of the screen.
+/*	padding-bottom:44px;	/*	This prevents the scroller to lock if the user swipes down outside of the screen.
 							 	NOT needed if in home screen mode. */
 }
 
@@ -185,5 +186,6 @@ body {
 </div>
 
 <div id="footer"><ul><li><a class="remove" href="#" onclick="document.getElementById('thelist').removeChild(document.getElementById('thelist').getElementsByTagName('li')[document.getElementById('thelist').getElementsByTagName('li').length-1]);return false;"><span>–</span>remove row</a></li><li><a class="add" href="#" onclick="document.getElementById('thelist').appendChild(document.createElement('li')).innerText = 'Pretty content row ' + document.getElementById('thelist').getElementsByTagName('li').length;return false;"><span>+</span>add row</a></li></ul></div>
+<div id="test"><div></div></div>
 </body>
 </html>
