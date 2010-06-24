@@ -131,7 +131,7 @@ iScroll.prototype = {
 		}
 
 		this.scrollX = this.element.offsetWidth > this.scrollWidth ? true : false;
-		this.scrollY = true;//this.element.offsetHeight > this.scrollHeight ? true : false;
+		this.scrollY = !this.scrollX || this.element.offsetHeight > this.scrollHeight ? true : false;
 
 		// Update horizontal scrollbar
 		if (this.options.hScrollbar && this.scrollX) {
