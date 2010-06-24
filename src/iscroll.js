@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.4 - Last updated: 2010.06.11
+ * Version 3.4.1 - Last updated: 2010.06.24
  * 
  */
 
@@ -27,7 +27,6 @@ function iScroll (el, options) {
 		topOnDOMChanges: false,
 		hScrollbar: has3d,
 		vScrollbar: has3d,
-		scrollbarClass: null,
 		fadeScrollbar: isIphone || isIpad || !isTouch,
 		shrinkScrollbar: isIphone || isIpad,
 		desktopCompatibility: false,
@@ -132,19 +131,19 @@ iScroll.prototype = {
 		}
 
 		this.scrollX = this.element.offsetWidth > this.scrollWidth ? true : false;
-		this.scrollY = this.element.offsetHeight > this.scrollHeight ? true : false;
+		this.scrollY = true;//this.element.offsetHeight > this.scrollHeight ? true : false;
 
 		// Update horizontal scrollbar
 		if (this.options.hScrollbar && this.scrollX) {
-			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar, this.options.shrinkScrollbar);
+			this.scrollBarX = (this.scrollBarX instanceof scrollbar) ? this.scrollBarX : new scrollbar('horizontal', this.wrapper, this.options.fadeScrollbar, this.options.shrinkScrollbar);
 			this.scrollBarX.init(this.scrollWidth, this.element.offsetWidth);
 		} else if (this.scrollBarX) {
 			this.scrollBarX = this.scrollBarX.remove();
 		}
 
 		// Update vertical scrollbar
-		if (this.options.vScrollbar && this.scrollY) {
-			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.scrollbarClass, this.options.fadeScrollbar, this.options.shrinkScrollbar);
+		if (this.options.vScrollbar && this.scrollY && this.element.offsetHeight > this.scrollHeight) {
+			this.scrollBarY = (this.scrollBarY instanceof scrollbar) ? this.scrollBarY : new scrollbar('vertical', this.wrapper, this.options.fadeScrollbar, this.options.shrinkScrollbar);
 			this.scrollBarY.init(this.scrollHeight, this.element.offsetHeight);
 		} else if (this.scrollBarY) {
 			this.scrollBarY = this.scrollBarY.remove();
@@ -186,7 +185,6 @@ iScroll.prototype = {
 /*	    if (e.touches.length != 1) {
 	        return false;
         }*/
-		
 		e.preventDefault();
 		e.stopPropagation();
 
@@ -338,7 +336,7 @@ iScroll.prototype = {
 			resetX = this.maxScrollX;
 		}
 
-		if (this.y >= 0) {
+		if (this.y >= 0 || this.maxScrollY > 0) {
 			resetY = 0;
 		} else if (this.y < this.maxScrollY) {
 			resetY = this.maxScrollY;
@@ -385,10 +383,34 @@ iScroll.prototype = {
 		newTime = speed / deceleration;
 
 		return { dist: Math.round(newDist), time: Math.round(newTime) };
+	},
+	
+	destroy: function (full) {
+		window.removeEventListener('resize', this, false);
+		this.element.removeEventListener(START_EVENT, this, false);
+		this.element.removeEventListener(MOVE_EVENT, this, false);
+		this.element.removeEventListener(END_EVENT, this, false);
+		this.element.removeEventListener('DOMSubtreeModified', this, false);
+		this.element.removeEventListener('click', this, true);
+		this.element.removeEventListener('webkitTransitionEnd', this, false);
+
+		if (this.scrollBarX) {
+			this.scrollBarX = this.scrollBarX.remove();
+		}
+
+		if (this.scrollBarY) {
+			this.scrollBarY = this.scrollBarY.remove();
+		}
+		
+		if (full) {
+			this.wrapper.parentNode.removeChild(this.wrapper);
+		}
+		
+		return null;
 	}
 };
 
-var scrollbar = function (dir, wrapper, classname, fade, shrink) {
+var scrollbar = function (dir, wrapper, fade, shrink) {
 	this.dir = dir;
 	this.fade = fade;
 	this.shrink = shrink;
@@ -396,29 +418,44 @@ var scrollbar = function (dir, wrapper, classname, fade, shrink) {
 	// Create main scrollbar
 	this.bar = document.createElement('div');
 
-	var style = 'position:absolute;top:0;left:0;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;-webkit-transition-duration:0;-webkit-transition-delay:0;-webkit-transition-property:-webkit-transform;' +
-		(has3d ? '-webkit-transform:translate3d(0,0,0);' : '-webkit-transform:translate(0,0);');
+	var style = 'position:absolute;top:0;left:0;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;-webkit-transition-duration:0;-webkit-transition-delay:0;-webkit-transition-property:-webkit-transform;z-index:10;background:rgba(0,0,0,0.5);' +
+		(has3d ? '-webkit-transform:translate3d(0,0,0);' : '-webkit-transform:translate(0,0);') +
+		(dir == 'horizontal' ? '-webkit-border-radius:3px 2px;min-width:6px;min-height:5px' : '-webkit-border-radius:2px 3px;min-width:5px;min-height:6px'),
+		size, ctx;
 
-	if (classname) {
-		this.bar.className = classname + ' ' + dir;
-	} else {	// Default style
-		style+= ';z-index:10;background:rgba(0,0,0,0.5);' +
-			(dir == 'horizontal' ? '-webkit-border-radius:3px 2px;min-width:6px;min-height:5px' : '-webkit-border-radius:2px 3px;min-width:5px;min-height:6px');
-	}
-	
 	this.bar.setAttribute('style', style);
 
 	// Create scrollbar wrapper
 	this.wrapper = document.createElement('div');
-	style = 'position:absolute;pointer-events:none;overflow:hidden;opacity:0;-webkit-transition-duration:' + (fade ? '300ms' : '0') + ';-webkit-transition-delay:0;-webkit-transition-property:opacity;' +
-		(this.dir == 'horizontal'
-			? 'bottom:2px;left:1px;right:7px;height:5px'
-			: 'top:1px;right:2px;bottom:7px;width:5px');
+	style = '-webkit-mask:-webkit-canvas(scrollbar' + this.dir + ');position:absolute;pointer-events:none;overflow:hidden;opacity:0;-webkit-transition-duration:' + (fade ? '300ms' : '0') + ';-webkit-transition-delay:0;-webkit-transition-property:opacity;' +
+		(this.dir == 'horizontal' ? 'bottom:2px;left:1px;right:7px;height:5px' : 'top:1px;right:2px;bottom:7px;width:5px;');
 	this.wrapper.setAttribute('style', style);
 
 	// Add scrollbar to the DOM
 	this.wrapper.appendChild(this.bar);
 	wrapper.appendChild(this.wrapper);
+	
+	if (this.dir == 'horizontal') {
+		size = this.wrapper.offsetWidth;
+		ctx = document.getCSSCanvasContext("2d", "scrollbar" + this.dir, size, 5);
+		ctx.fillStyle = "rgb(0,0,0)";
+		ctx.beginPath();
+		ctx.arc(2.5, 2.5, 2.5, Math.PI/2, -Math.PI/2, false);
+		ctx.lineTo(size-2.5, 0);
+		ctx.arc(size-2.5, 2.5, 2.5, -Math.PI/2, Math.PI/2, false);
+		ctx.closePath();
+		ctx.fill();
+	} else {
+		size = this.wrapper.offsetHeight;
+		ctx = document.getCSSCanvasContext("2d", "scrollbar" + this.dir, 5, size);
+		ctx.fillStyle = "rgb(0,0,0)";
+		ctx.beginPath();
+		ctx.arc(2.5, 2.5, 2.5, Math.PI, 0, false);
+		ctx.lineTo(5, size-2.5);
+		ctx.arc(2.5, size-2.5, 2.5, 0, Math.PI, false);
+		ctx.closePath();
+		ctx.fill();
+	}
 }
 
 scrollbar.prototype = {
@@ -443,11 +480,15 @@ scrollbar.prototype = {
 
 		pos = this.toWrapperProp * pos;
 		
-		if (!this.shrink) {
-			if (pos < 0) {
-				pos = 0;
-			} else if (pos > this.maxScroll) {
-				pos = this.maxScroll;
+		if (pos < 0) {
+			pos = this.shrink ? pos + pos*3 : 0;
+			if (this.size + pos < 5) {
+				pos = -this.size+5;
+			}
+		} else if (pos > this.maxScroll) {
+			pos = this.shrink ? pos + (pos-this.maxScroll)*3 : this.maxScroll;
+			if (this.size + this.maxScroll - pos < 5) {
+				pos = this.size + this.maxScroll - 5;
 			}
 		}
 
@@ -475,7 +516,7 @@ scrollbar.prototype = {
 	},
 	
 	remove: function () {
-		this.bar.parentNode.removeChild(this.bar);
+		this.wrapper.parentNode.removeChild(this.wrapper);
 		return null;
 	}
 };
