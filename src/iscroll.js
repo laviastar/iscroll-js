@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.4.1 - Last updated: 2010.06.24
+ * Version 3.4.2 - Last updated: 2010.06.27
  * 
  */
 
@@ -242,7 +242,7 @@ iScroll.prototype = {
 			newY = this.options.bounce ? Math.round(this.y + topDelta / 3) : newY >= 0 ? 0 : this.maxScrollY;
 		}
 
-		if (this.dist > 5) {			// 5 pixels threshold are needed for Android, but also on iPhone seems more natural
+		if (this.dist > 5) {			// 5 pixels threshold is needed on Android, but also on iPhone looks more natural
 			this.setPosition(newX, newY);
 			this.moved = true;
 		}
@@ -303,8 +303,8 @@ iScroll.prototype = {
 		var momentumY = this.scrollY === true
 			? this.momentum(this.y - this.scrollStartY,
 							time,
-							this.options.bounce ? -this.y + this.scrollHeight/10 : -this.y,
-							this.options.bounce ? this.y + this.element.offsetHeight - this.scrollHeight + this.scrollHeight/10 : this.y + this.element.offsetHeight - this.scrollHeight)
+							this.options.bounce ? -this.y + this.scrollHeight/5 : -this.y,
+							this.options.bounce ? (this.maxScrollY < 0 ? this.y + this.element.offsetHeight - this.scrollHeight : 0) + this.scrollHeight/5 : this.y + this.element.offsetHeight - this.scrollHeight)
 			: { dist: 0, time: 0 };
 
 		if (!momentumX.dist && !momentumY.dist) {
