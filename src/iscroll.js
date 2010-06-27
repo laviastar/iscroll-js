@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.4.2 - Last updated: 2010.06.27
+ * Version 3.4.3 - Last updated: 2010.06.27
  * 
  */
 
