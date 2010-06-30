@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Scrolling DIV demo on iPhone / iPod Touch / Android / iPad</title>
 
-<script type="text/javascript" src="../../src/iscroll.js?v3.4.3"></script>
+<script type="text/javascript" src="../../src/iscroll.js?v3.4.4"></script>
 
 <script type="text/javascript">
 var myScroll;
@@ -33,7 +33,7 @@ function loaded() {
 	/* myScroll = myScroll.destroy(true);	// Completely destroy the iScroll */
 }
 
-window.addEventListener('resize', setHeight, false);
+window.addEventListener('onorientationchange' in window ? 'orientationchange' : 'resize', setHeight, false);
 document.addEventListener('touchmove', function(e){ e.preventDefault(); }, false);
 document.addEventListener('DOMContentLoaded', loaded, false);
 </script>

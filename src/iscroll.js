@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.4.3 - Last updated: 2010.06.27
+ * Version 3.4.4 - Last updated: 2010.06.30
  * 
  */
 
@@ -47,8 +47,7 @@ function iScroll (el, options) {
 	
 	this.refresh();
 
-//	window.addEventListener('orientationchange', this, false);
-	window.addEventListener('resize', this, false);		// 'resize' seems more widely supported (works on Android, iPhone and desktop browsers)
+	window.addEventListener('onorientationchange' in window ? 'orientationchange' : 'resize', this, false);
 
 	if (isTouch || this.options.desktopCompatibility) {
 		this.element.addEventListener(START_EVENT, this, false);
@@ -87,6 +86,7 @@ iScroll.prototype = {
 			case 'webkitTransitionEnd':
 				this.transitionEnd(e);
 				break;
+			case 'orientationchange':
 			case 'resize':
 				this.refresh();
 				break;
