@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.4.4 - Last updated: 2010.06.30
+ * Version 3.4.5 - Last updated: 2010.07.04
  * 
  */
 
@@ -16,10 +16,12 @@ function iScroll (el, options) {
 	this.element = typeof el == 'object' ? el : document.getElementById(el);
 	this.wrapper = this.element.parentNode;
 
-	var style = '-webkit-transition-property:-webkit-transform;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);-webkit-transition-duration:0;-webkit-transform:' + (has3d ? 'translate3d(0,0,0)' : 'translate(0,0)');
-	this.element.setAttribute('style', style);
+	this.element.style.webkitTransitionProperty = '-webkit-transform';
+	this.element.style.webkitTransitionTimingFunction = 'cubic-bezier(0,0,0.25,1)';
+	this.element.style.webkitTransitionDuration = '0';
+	this.element.style.webkitTransform = has3d ? 'translate3d(0,0,0)' : 'translate(0,0)';
 
-	// Get options
+	// Default options
 	this.options = {
 		bounce: has3d,
 		momentum: has3d,
@@ -33,6 +35,7 @@ function iScroll (el, options) {
 		overflow: 'auto'
 	};
 	
+	// User defined options
 	if (typeof options == 'object') {
 		for (var i in options) {
 			this.options[i] = options[i];
@@ -522,7 +525,7 @@ scrollbar.prototype = {
 };
 
 // Is translate3d compatible?
-var has3d = ('m11' in new WebKitCSSMatrix()),
+var has3d = ('WebKitCSSMatrix' in window && 'm11' in new WebKitCSSMatrix()),
 // Device sniffing
 	isIphone = navigator.appVersion.match(/iphone/gi) ? true : false,
 	isIpad = navigator.appVersion.match(/ipad/gi) ? true : false,
