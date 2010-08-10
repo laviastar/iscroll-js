@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Scrolling DIV demo on iPhone / iPod Touch / Android / iPad</title>
 
-<script type="text/javascript" src="../../src/iscroll.js?v3.5.1"></script>
+<script type="text/javascript" src="../../src/iscroll.js?v3.6b1"></script>
 
 <script type="text/javascript">
 var myScroll;
@@ -28,7 +28,7 @@ function loaded() {
 }
 
 window.addEventListener('onorientationchange' in window ? 'orientationchange' : 'resize', setHeight, false);
-document.addEventListener('touchstart', function(e){ e.preventDefault(); }, true);
+document.addEventListener('touchmove', function(e){ e.preventDefault(); }, false);
 document.addEventListener('DOMContentLoaded', loaded, false);
 </script>
 
@@ -128,7 +128,7 @@ body {
 	width:100%;
 	padding:0;
 	
-/*	-webkit-box-shadow:0 0 8px #555;	/* Don't use shadows in production, they slow down drastically CSS animations */
+/*	-webkit-box-shadow:0 0 8px #555;	/* Don't use box shadows, they slow down drastically CSS animations */
 }
 
 #scroller ul {

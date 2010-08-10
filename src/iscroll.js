@@ -3,17 +3,17 @@
  * Find more about the scrolling function at
  * http://cubiq.org/iscroll
  *
- * Copyright (c) 2009 Matteo Spinelli, http://cubiq.org/
+ * Copyright (c) 2010 Matteo Spinelli, http://cubiq.org/
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.5.1 - Last updated: 2010.07.30
+ * Version 3.6beta1 - Last updated: 2010.08.10
  * 
  */
 
 (function(){
 function iScroll (el, options) {
-	var that = this;
+	var that = this, i;
 	that.element = typeof el == 'object' ? el : document.getElementById(el);
 	that.wrapper = that.element.parentNode;
 
@@ -33,16 +33,17 @@ function iScroll (el, options) {
 		fadeScrollbar: isIphone || isIpad || !isTouch,
 		shrinkScrollbar: isIphone || isIpad,
 		desktopCompatibility: false,
-		overflow: 'auto'
+		overflow: 'auto',
+		snap: false
 	};
 	
 	// User defined options
 	if (typeof options == 'object') {
-		for (var i in options) {
+		for (i in options) {
 			that.options[i] = options[i];
 		}
 	}
-	
+
 	if (that.options.desktopCompatibility) {
 		that.options.overflow = 'hidden';
 	}
@@ -75,7 +76,7 @@ iScroll.prototype = {
 
 	handleEvent: function (e) {
 		var that = this;
-		
+
 		switch (e.type) {
 			case 'click':
 				if (!e._fake) {
@@ -92,23 +93,23 @@ iScroll.prototype = {
 				that.touchEnd(e);
 				break;
 			case 'webkitTransitionEnd':
-				that.transitionEnd(e);
+				that.transitionEnd();
 				break;
 			case 'orientationchange':
 			case 'resize':
 				that.refresh();
 				break;
 			case 'DOMSubtreeModified':
-				that.onDOMModified(e);
+				that.onDOMModified();
 				break;
 		}
 	},
 	
-	onDOMModified: function (e) {
+	onDOMModified: function () {
 		var that = this;
-		
+
 		that.refresh();
-		
+
 		if (that.options.topOnDOMChanges && (that.x!=0 || that.y!=0)) {
 			that.scrollTo(0,0,'0');
 		}
@@ -116,7 +117,8 @@ iScroll.prototype = {
 
 	refresh: function () {
 		var that = this,
-			resetX = this.x, resetY = this.y;
+			resetX = this.x, resetY = this.y,
+			snap;
 		
 		that.scrollWidth = that.wrapper.clientWidth;
 		that.scrollHeight = that.wrapper.clientHeight;
@@ -124,6 +126,8 @@ iScroll.prototype = {
 		that.scrollerHeight = that.element.offsetHeight;
 		that.maxScrollX = that.scrollWidth - that.scrollerWidth;
 		that.maxScrollY = that.scrollHeight - that.scrollerHeight;
+		that.directionX = 0;
+		that.directionY = 0;
 
 		if (that.scrollX) {
 			if (that.maxScrollX >= 0) {
@@ -139,11 +143,21 @@ iScroll.prototype = {
 				resetY = that.maxScrollY;
 			}
 		}
+		// Snap
+		if (that.options.snap) {
+			that.maxPageX = -Math.floor(that.maxScrollX/that.scrollWidth);
+			that.maxPageY = -Math.floor(that.maxScrollY/that.scrollHeight);
+
+			snap = that.snap(resetX, resetY);
+			resetX = snap.x;
+			resetY = snap.y;
+		}
+
 		if (resetX!=that.x || resetY!=that.y) {
 			that.setTransitionTime('0');
 			that.setPosition(resetX, resetY, true);
 		}
-
+		
 		that.scrollX = that.scrollerWidth > that.scrollWidth;
 		that.scrollY = !that.scrollX || that.scrollerHeight > that.scrollHeight;
 
@@ -214,10 +228,10 @@ iScroll.prototype = {
 		that.setTransitionTime('0');
 
 		// Check if the scroller is really where it should be
-		if (that.options.momentum) {
+		if (that.options.momentum || that.options.snap) {
 			matrix = new WebKitCSSMatrix(window.getComputedStyle(that.element).webkitTransform);
 			if (matrix.e != that.x || matrix.f != that.y) {
-				that.element.removeEventListener('webkitTransitionEnd', that, false);
+				document.removeEventListener('webkitTransitionEnd', that, false);
 				that.setPosition(matrix.e, matrix.f);
 				that.moved = true;
 			}
@@ -230,6 +244,9 @@ iScroll.prototype = {
 		that.scrollStartY = that.y;
 
 		that.scrollStartTime = e.timeStamp;
+
+		that.directionX = 0;
+		that.directionY = 0;
 	},
 	
 	touchMove: function(e) {
@@ -264,6 +281,8 @@ iScroll.prototype = {
 		if (that.dist > 5) {			// 5 pixels threshold is needed on Android, but also on iPhone looks more natural
 			that.setPosition(newX, newY);
 			that.moved = true;
+			that.directionX = leftDelta > 0 ? -1 : 1;
+			that.directionY = topDelta > 0 ? -1 : 1;
 		}
 	},
 	
@@ -271,7 +290,10 @@ iScroll.prototype = {
 		var that = this,
 			time = e.timeStamp - that.scrollStartTime,
 			target, ev,
-			momentumX, momentumY, newDuration, newPositionX, newPositionY;
+			momentumX, momentumY,
+			newDuration = 0,
+			newPositionX = that.x, newPositionY = that.y,
+			snap;
 
 		if (!that.scrolling) {
 			return;
@@ -304,48 +326,57 @@ iScroll.prototype = {
 			return;
 		}
 
-		if (!that.options.momentum || time > 250) {			// Prevent slingshot effetct
+		if (!that.options.snap && time > 250) {			// Prevent slingshot effect
 			that.resetPosition();
 			return;
 		}
 
-		momentumX = that.scrollX === true
-			? that.momentum(that.x - that.scrollStartX,
-							time,
-							that.options.bounce ? -that.x + that.scrollWidth/5 : -that.x,
-							that.options.bounce ? that.x + that.scrollerWidth - that.scrollWidth + that.scrollWidth/5 : that.x + that.scrollerWidth - that.scrollWidth)
-			: { dist: 0, time: 0 };
+		if (that.options.momentum) {
+			momentumX = that.scrollX === true
+				? that.momentum(that.x - that.scrollStartX,
+								time,
+								that.options.bounce ? -that.x + that.scrollWidth/5 : -that.x,
+								that.options.bounce ? that.x + that.scrollerWidth - that.scrollWidth + that.scrollWidth/5 : that.x + that.scrollerWidth - that.scrollWidth)
+				: { dist: 0, time: 0 };
 
-		momentumY = that.scrollY === true
-			? that.momentum(that.y - that.scrollStartY,
-							time,
-							that.options.bounce ? -that.y + that.scrollHeight/5 : -that.y,
-							that.options.bounce ? (that.maxScrollY < 0 ? that.y + that.scrollerHeight - that.scrollHeight : 0) + that.scrollHeight/5 : that.y + that.scrollerHeight - that.scrollHeight)
-			: { dist: 0, time: 0 };
+			momentumY = that.scrollY === true
+				? that.momentum(that.y - that.scrollStartY,
+								time,
+								that.options.bounce ? -that.y + that.scrollHeight/5 : -that.y,
+								that.options.bounce ? (that.maxScrollY < 0 ? that.y + that.scrollerHeight - that.scrollHeight : 0) + that.scrollHeight/5 : that.y + that.scrollerHeight - that.scrollHeight)
+				: { dist: 0, time: 0 };
 
-		if (!momentumX.dist && !momentumY.dist) {
+			newDuration = Math.max(Math.max(momentumX.time, momentumY.time), 1);		// The minimum animation length must be 1ms
+			newPositionX = that.x + momentumX.dist;
+			newPositionY = that.y + momentumY.dist;
+		}
+		
+		if (that.options.snap) {
+			snap = that.snap(newPositionX, newPositionY);
+			newPositionX = snap.x;
+			newPositionY = snap.y;
+			newDuration = Math.max(snap.time, newDuration);
+		}
+/*
+		if (newPositionX==that.x && newPositionY==that.y) {
 			that.resetPosition();
 			return;
 		}
-
-		newDuration = Math.max(Math.max(momentumX.time, momentumY.time), 1);		// The minimum animation length must be 1ms
-		newPositionX = that.x + momentumX.dist;
-		newPositionY = that.y + momentumY.dist;
+*/
 
 		that.scrollTo(newPositionX, newPositionY, newDuration + 'ms');
 	},
-	
+
 	transitionEnd: function () {
-		this.element.removeEventListener('webkitTransitionEnd', this, false);
-		this.resetPosition();
+		var that = this;
+		document.removeEventListener('webkitTransitionEnd', that, false);
+		that.resetPosition();
 	},
 
 	resetPosition: function (time) {
 		var that = this,
 			resetX = that.x,
-		 	resetY = that.y,
-			that = that,
-			time = time || '500ms';
+		 	resetY = that.y;
 
 		if (that.x >= 0) {
 			resetX = 0;
@@ -361,7 +392,9 @@ iScroll.prototype = {
 
 		if (resetX != that.x || resetY != that.y) {
 			that.scrollTo(resetX, resetY, time);
-		} else if (that.scrollBarX || that.scrollBarY) {
+		} else {
+			that.onScrollEnd();		// Execute custom code on scroll end
+			
 			// Hide the scrollbars
 			if (that.scrollBarX) {
 				that.scrollBarX.hide();
@@ -371,20 +404,100 @@ iScroll.prototype = {
 			}
 		}
 	},
+	
+	snap: function (x, y) {
+		var that = this, time;
+
+		if (that.directionX > 0) {
+			x = Math.floor(x/that.scrollWidth);
+		} else if (that.directionX < 0) {
+			x = Math.ceil(x/that.scrollWidth);
+		} else {
+			x = Math.round(x/that.scrollWidth);
+		}
+		that.pageX = -x;
+		x = x * that.scrollWidth;
+		if (x > 0) {
+			x = that.pageX = 0;
+		} else if (x < that.maxScrollX) {
+			that.pageX = that.maxPageX;
+			x = that.maxScrollX;
+		}
+
+		if (that.directionY > 0) {
+			y = Math.floor(y/that.scrollHeight);
+		} else if (that.directionY < 0) {
+			y = Math.ceil(y/that.scrollHeight);
+		} else {
+			y = Math.round(y/that.scrollHeight);
+		}
+		that.pageY = -y;
+		y = y * that.scrollHeight;
+		if (y > 0) {
+			y = that.pageY = 0;
+		} else if (y < that.maxScrollY) {
+			that.pageY = that.maxPageY;
+			y = that.maxScrollY;
+		}
+
+		// Snap with constant speed (proportional duration)
+		time = Math.round(Math.max(
+				Math.abs(that.x - x) / that.scrollWidth * 500,
+				Math.abs(that.y - y) / that.scrollHeight * 500
+			));
+			
+		return { x: x, y: y, time: time };
+	},
 
 	scrollTo: function (destX, destY, runtime) {
 		var that = this;
-		
-		that.setTransitionTime(runtime || '450ms');
+
+		if (that.x == destX && that.y == destY) {
+			that.onScrollEnd();
+			return;
+		}
+
+		that.setTransitionTime(runtime || '400ms');
 		that.setPosition(destX, destY);
 
 		if (runtime==='0' || runtime=='0s' || runtime=='0ms') {
 			that.resetPosition();
+			that.onScrollEnd();
 		} else {
-			that.element.addEventListener('webkitTransitionEnd', that, false);	// At the end of the transition check if we are still inside of the boundaries
+			document.addEventListener('webkitTransitionEnd', that, false);	// At the end of the transition check if we are still inside of the boundaries
 		}
 	},
 	
+	scrollToPage: function (pageX, pageY, runtime) {
+		var that = this, snap;
+
+		if (!that.options.snap) {
+			that.pageX = -Math.round(that.x / that.scrollWidth);
+			that.pageY = -Math.round(that.y / that.scrollHeight);
+		}
+
+		if (pageX == 'next') {
+			pageX = ++that.pageX;
+		} else if (pageX == 'prev') {
+			pageX = --that.pageX;
+		}
+
+		if (pageY == 'next') {
+			pageY = ++that.pageY;
+		} else if (pageY == 'prev') {
+			pageY = --that.pageY;
+		}
+
+		pageX = -pageX*that.scrollWidth;
+		pageY = -pageY*that.scrollHeight;
+
+		snap = that.snap(pageX, pageY);
+		pageX = snap.x;
+		pageY = snap.y;
+
+		that.scrollTo(pageX, pageY, runtime || '500ms');
+	},
+
 	scrollToElement: function (el, runtime) {
 		el = typeof el == 'object' ? el : this.element.querySelector(el);
 
@@ -433,6 +546,8 @@ iScroll.prototype = {
 		return { dist: Math.round(newDist), time: Math.round(newTime) };
 	},
 	
+	onScrollEnd: function () {},
+
 	destroy: function (full) {
 		var that = this;
 		
@@ -443,7 +558,7 @@ iScroll.prototype = {
 		that.element.removeEventListener(END_EVENT, that, false);
 		that.element.removeEventListener('DOMSubtreeModified', that, false);
 		that.element.removeEventListener('click', that, true);
-		that.element.removeEventListener('webkitTransitionEnd', that, false);
+		document.removeEventListener('webkitTransitionEnd', that, false);
 
 		if (that.scrollBarX) {
 			that.scrollBarX = that.scrollBarX.remove();
@@ -461,8 +576,8 @@ iScroll.prototype = {
 	}
 };
 
-var scrollbar = function (dir, wrapper, fade, shrink) {
-	var that = this;
+function scrollbar (dir, wrapper, fade, shrink) {
+	var that = this, style;
 	
 	that.dir = dir;
 	that.fade = fade;
@@ -472,10 +587,9 @@ var scrollbar = function (dir, wrapper, fade, shrink) {
 	// Create main scrollbar
 	that.bar = document.createElement('div');
 
-	var style = 'position:absolute;top:0;left:0;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;-webkit-transition-duration:0;-webkit-transition-delay:0;-webkit-transition-property:-webkit-transform;z-index:10;background:rgba(0,0,0,0.5);' +
+	style = 'position:absolute;top:0;left:0;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);pointer-events:none;-webkit-transition-duration:0;-webkit-transition-delay:0;-webkit-transition-property:-webkit-transform;z-index:10;background:rgba(0,0,0,0.5);' +
 		'-webkit-transform:' + translateOpen + '0,0' + translateClose + ';' +
-		(dir == 'horizontal' ? '-webkit-border-radius:3px 2px;min-width:6px;min-height:5px' : '-webkit-border-radius:2px 3px;min-width:5px;min-height:6px'),
-		size, ctx;
+		(dir == 'horizontal' ? '-webkit-border-radius:3px 2px;min-width:6px;min-height:5px' : '-webkit-border-radius:2px 3px;min-width:5px;min-height:6px');
 
 	that.bar.setAttribute('style', style);
 
