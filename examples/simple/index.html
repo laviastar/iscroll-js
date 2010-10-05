@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Scrolling DIV demo on iPhone / iPod Touch / Android / iPad</title>
 
-<script type="text/javascript" src="../../src/iscroll.js?v3.6"></script>
+<script type="text/javascript" src="../../src/iscroll.js?v3.7"></script>
 
 <script type="text/javascript">
 var myScroll;
@@ -21,9 +21,9 @@ function loaded() {
 
 // Change wrapper height based on device orientation. Not strictly needed by iScroll, you may also use pure CSS techniques.
 function setHeight() {
-	var headerH = document.getElementById('header').offsetHeight;
-	var footerH = document.getElementById('footer').offsetHeight;
-	var wrapperH = window.innerHeight - headerH - footerH;
+	var headerH = document.getElementById('header').offsetHeight,
+		footerH = document.getElementById('footer').offsetHeight,
+		wrapperH = window.innerHeight - headerH - footerH;
 	document.getElementById('wrapper').style.height = wrapperH + 'px';
 }
 
@@ -155,11 +155,6 @@ body {
 
 #scroller li > a {
 	display:block;
-}
-
-fieldset {
-	display:block; float:left;
-	width:100%;
 }
 </style>
 </head>
