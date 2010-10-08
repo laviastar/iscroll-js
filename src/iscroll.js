@@ -7,7 +7,7 @@
  * Released under MIT license
  * http://cubiq.org/dropbox/mit-license.txt
  * 
- * Version 3.7 - Last updated: 2010.10.05
+ * Version 3.7.1 - Last updated: 2010.10.08
  * 
  */
 
@@ -17,7 +17,10 @@ function iScroll (el, options) {
 	that.element = typeof el == 'object' ? el : document.getElementById(el);
 	that.wrapper = that.element.parentNode;
 
-	that.element.style.cssText = '-webkit-transition-property:-webkit-transform;-webkit-transition-timing-function:cubic-bezier(0,0,0.25,1);-webkit-transition-duration:0;-webkit-transform:' + translateOpen + '0,0' + translateClose;
+	that.element.style.webkitTransitionProperty = '-webkit-transform';
+	that.element.style.webkitTransitionTimingFunction = 'cubic-bezier(0,0,0.25,1)';
+	that.element.style.webkitTransitionDuration = '0';
+	that.element.style.webkitTransform = translateOpen + '0,0' + translateClose;
 
 	// Default options
 	that.options = {
@@ -116,7 +119,7 @@ iScroll.prototype = {
 
 	refresh: function () {
 		var that = this,
-			resetX = this.x, resetY = this.y,
+			resetX = that.x, resetY = that.y,
 			snap;
 		
 		that.scrollWidth = that.wrapper.clientWidth;
